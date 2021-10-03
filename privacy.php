@@ -1,5 +1,9 @@
 <?php
-if (!defined('BASE_DIR')) exit;
+require_once 'vendor/autoload.php';
+require_once 'includes/config.php';
+require_once 'includes/functions.php';
+
+include_once 'header.php';
 ?>
 <div class="row">
     <div class="col">
@@ -32,3 +36,5 @@ if (!defined('BASE_DIR')) exit;
         <p>We have the discretion to update this privacy policy at any time. We encourage Users to frequently check this page for any changes to stay informed about how we are helping to protect the personal information we collect. You acknowledge and agree that it is your responsibility to review this privacy policy periodically and become aware of modifications. Your continued use of the SITE following the posting of changes to this policy will be deemed your acceptance of those changes.</p>
     </div>
 </div>
+<?php
+include_once 'footer.php';

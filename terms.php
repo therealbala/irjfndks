@@ -1,5 +1,9 @@
 <?php
-if (!defined('BASE_DIR')) exit;
+require_once 'vendor/autoload.php';
+require_once 'includes/config.php';
+require_once 'includes/functions.php';
+
+include_once 'header.php';
 ?>
 <div class="row">
     <div class="col">
@@ -198,3 +202,5 @@ if (!defined('BASE_DIR')) exit;
         </p>
     </div>
 </div>
+<?php
+include_once 'footer.php';

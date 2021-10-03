@@ -1,5 +1,10 @@
 <?php
-if (!defined('BASE_DIR')) die('access denied!');
+require_once 'vendor/autoload.php';
+require_once 'includes/config.php';
+require_once 'includes/functions.php';
+
+session_write_close();
+header('X-Frame-Options: SAMEORIGIN');
 
 $msg = '';
 $link = '';
@@ -21,19 +26,24 @@ if (!empty($_POST['link']) && !$disableSharer) {
     }
 }
 
+include_once 'header.php';
 if (!$disableSharer) :
 ?>
-    <div class="row py-5 bg-custom text-center">
+    <div class="row">
         <div class="col">
-            <h1 class="h3">Bypass Limit Google Drive</h1>
-            <p>This tool is used to bypass the Google Drive limit without having to log in.</p>
+            <div class="header-title text-center my-3">
+                <h2>Bypass Limit Google Drive</h2>
+            </div>
+            <p class="text-center">This tool is used to bypass the Google Drive limit without having to log in.</p>
         </div>
     </div>
-    <div class="row py-5">
-        <div class="col-12 mb-3"><?php echo htmlspecialchars_decode(get_option('sh_banner_top')); ?></div>
-        <div class="col-12">
+    <div class="row">
+        <div class="col"><?php echo htmlspecialchars_decode(get_option('sh_banner_top')); ?></div>
+    </div>
+    <div class="row my-2">
+        <div class="col">
             <?php echo $msg; ?>
-            <form id="frm" action="<?php echo BASE_URL; ?>sharer/" method="post">
+            <form id="frm" action="<?php echo $_SERVER['PHP_SELF']; ?>" method="post">
                 <div class="form-group">
                     <input type="text" name="link" id="link" class="form-control" placeholder="Google Drive Link! Example: https://drive.google.com/file/d/1DY5QWnXCdWnAWDXuwOT5pOW6OyTL8cIa/view" value="<?php echo $link; ?>" required>
                 </div>
@@ -47,7 +57,7 @@ if (!$disableSharer) :
                     endif;
                     ?>
                     <input type="hidden" id="captcha-response" name="captcha-response" />
-                    <button id="submit" type="submit" class="btn btn-custom btn-block">
+                    <button id="submit" type="submit" class="btn btn-success btn-block">
                         <i class="fa fa-cog"></i>
                         <span class="ml-2">Bypass Limit</span>
                     </button>
@@ -58,9 +68,13 @@ if (!$disableSharer) :
                 <input type="text" onfocus="this.select()" value="<?php echo $linkBypass; ?>" class="form-control" placeholder="The bypass limit link is here!" readonly>
             </div>
         </div>
-        <div class="col-12 mb-3"><?php echo htmlspecialchars_decode(get_option('sh_banner_bottom')); ?></div>
+    </div>
+    <div class="row">
+        <div class="col"><?php echo htmlspecialchars_decode(get_option('sh_banner_bottom')); ?></div>
     </div>
 <?php
 else :
     echo error(403);
 endif;
+include_once 'includes/disqus.php';
+include_once 'footer.php';

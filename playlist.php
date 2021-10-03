@@ -1,10 +1,16 @@
 <?php
-if (!defined('BASE_DIR')) die('access denied');
+require_once 'vendor/autoload.php';
+require_once 'includes/config.php';
+require_once 'includes/sfunctions.php';
 
-session_write_close();
-header('Content-Type: application/vnd.apple.mpegurl');
 ini_set('max_execution_time', 0);
 set_time_limit(0);
+if (ini_get('zlib.output_compression')) {
+    ini_set('zlib.output_compression', 'Off');
+}
+session_write_close();
+
+header('Developed-By: GDPlayer.top');
 
 $referer = '';
 if (!empty($_SERVER['HTTP_REFERER'])) {
@@ -38,58 +44,60 @@ if (!empty($_GET['url'])) {
     exit();
 }
 
-$cacheExp = time() - 3600;
-$cacheFile = BASE_DIR . 'cache/playlist/' . substr(preg_replace('/[^a-zA-Z0-9]+/', '', $url), 0, 200) . '.m3u8';
-if (file_exists($cacheFile) && $cacheExp <= filemtime($cacheFile)) {
-    echo @file_get_contents($cacheFile);
+$cachefile = BASE_DIR . 'cache/playlist/' . substr(preg_replace('/[^a-zA-Z0-9]+/', '', $url), 0, 200) . '.m3u8';
+$cachetime = 3600 * 3;
+if (file_exists($cachefile) && time() - $cachetime <= filemtime($cachefile)) {
+    echo @file_get_contents($cachefile);
     exit();
-} else {
-    @unlink($cacheFile);
 }
 
 $scheme = parse_url($url, PHP_URL_SCHEME);
 $host   = parse_url($url, PHP_URL_HOST);
-$ref    = hls_referer($url);
-$headers = array(
-    'Accept: */*',
-    'Accept-Encoding: gzip, deflate, br',
-    'Accept-Language: id,id-ID;q=0.9,en;q=0.8',
-    'Cache-Control: no-cache',
-    'Connection: keep-alive',
-    'Host: ' . $host,
-    'Origin: ' . rtrim($ref, '/'),
-    'Pragma: no-cache',
-    'Referer: ' . $ref,
-    'User-Agent: ' . USER_AGENT,
-    'X-Requested-With: XMLHttpRequest'
-);
+$ref    = !empty($_GET['ref']) ? rawurldecode(decode($_GET['ref'])) : $scheme . '://' . $host;
 
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $url);
 curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+curl_setopt($ch, CURLOPT_MAXREDIRS, 2);
 curl_setopt($ch, CURLOPT_ENCODING, '');
-curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
 curl_setopt($ch, CURLOPT_TIMEOUT, 0);
-curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
-curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
-curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
-curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+if (defined('CURLOPT_TCP_FASTOPEN')) {
+    curl_setopt($ch, CURLOPT_TCP_FASTOPEN, 1);
+}
+curl_setopt($ch, CURLOPT_TCP_NODELAY, 1);
+curl_setopt($ch, CURLOPT_FORBID_REUSE, 1);
+curl_setopt($ch, CURLOPT_REFERER, $ref);
+curl_setopt($ch, CURLOPT_USERAGENT, USER_AGENT);
+curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+    'Accept-Encoding: gzip, deflate',
+    'Cache-Control: no-cache',
+    'Connection: keep-alive',
+    'Host: ' . $host,
+    'Origin: https://' . $host,
+    'Pragma: no-cache',
+    'X-Requested-With: XMLHttpRequest'
+));
 session_write_close();
 $response = curl_exec($ch);
-$err = curl_error($ch);
+$status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+$contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
 curl_close($ch);
 
-if (!$err) {
-    if (strpos($response, '#EXTM3U') !== FALSE) {
-        $content = parse_hls($response, $url);
-        @file_put_contents($cacheFile, $content);
-        echo $content;
+if ($status >= 200 && $status < 400) {
+    header('Content-Type: ' . $contentType);
+    if (strpos($contentType, 'application') !== FALSE) {
+        $hls = trim(parse_hls($response, $url), '1');
+        file_put_contents($cachefile, $hls);
+        echo $hls;
     } else {
-        echo $response;
+        echo trim($response, '1');
     }
+    exit;
 } else {
     http_response_code(404);
-    error_log($err);
+    exit;
 }

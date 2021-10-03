@@ -1,10 +1,16 @@
 <?php
-if (!defined('BASE_DIR')) die('access denied');
+require_once 'vendor/autoload.php';
+require_once 'includes/config.php';
+require_once 'includes/sfunctions.php';
 
-session_write_close();
-header('Content-Type: video/mp2t');
 ini_set('max_execution_time', 0);
 set_time_limit(0);
+if (ini_get('zlib.output_compression')) {
+    ini_set('zlib.output_compression', 'Off');
+}
+session_write_close();
+
+header('Developed-By: GDPlayer.top');
 
 $referer = '';
 if (!empty($_SERVER['HTTP_REFERER'])) {
@@ -38,42 +44,44 @@ if (!empty($_GET['url'])) {
     exit();
 }
 
-$mf = !empty(get_option('memory_friendly'));
 $host   = parse_url($url, PHP_URL_HOST);
-$ref    = hls_referer($url);
-$headers = array(
-    'Accept: */*',
-    'Accept-Encoding: gzip, deflate, br',
-    'Accept-Language: id,id-ID;q=0.9,en;q=0.8',
-    'Cache-Control: no-cache',
-    'Connection: keep-alive',
-    'Host: ' . $host,
-    'Origin: ' . rtrim($ref, '/'),
-    'Pragma: no-cache',
-    'Referer: ' . $ref,
-    'User-Agent: ' . USER_AGENT,
-    'X-Requested-With: XMLHttpRequest'
-);
-
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $url);
 curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, 0);
-curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
-curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
-curl_setopt($ch, CURLOPT_BUFFERSIZE, 2097152);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);
+curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
+curl_setopt($ch, CURLOPT_BUFFERSIZE, 20971528);
 curl_setopt($ch, CURLOPT_TIMEOUT, 0);
-curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
-curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-if ($mf) {
-    // Don't load that file into memory, stream it down to the browser instead
-    curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($curl, $body) {
-        echo $body;
-        ob_flush(); // flush output buffer (Output Control configuration specific)
-        flush();    // flush output body (SAPI specific)
-        return strlen($body);
-    });
+curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+if (defined('CURLOPT_TCP_FASTOPEN')) {
+    curl_setopt($ch, CURLOPT_TCP_FASTOPEN, 1);
+}
+curl_setopt($ch, CURLOPT_TCP_NODELAY, 1);
+curl_setopt($ch, CURLOPT_FORBID_REUSE, 1);
+curl_setopt($ch, CURLOPT_USERAGENT, USER_AGENT);
+curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+    'Accept-Encoding: gzip, deflate',
+    'Cache-Control: no-cache',
+    'Connection: keep-alive',
+    'Host: ' . $host,
+    'Origin: https://' . $host,
+    'Pragma: no-cache',
+    'X-Requested-With: XMLHttpRequest'
+));
+// Don't load that file into memory, stream it down to the browser instead
+curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($curl, $body) {
+    echo $body;
+    return strlen($body);
+});
+$contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+
+ob_get_clean();
+if (strpos($contentType, 'video/') !== FALSE) {
+    header('Content-Type: ' . $contentType);
+} else {
+    header('Content-Type: video/mp2t');
 }
 session_write_close();
 curl_exec($ch);
